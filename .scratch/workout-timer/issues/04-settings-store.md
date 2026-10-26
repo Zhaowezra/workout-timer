@@ -4,9 +4,9 @@
 
 **Blocked by:** 01: Project scaffold with test runner
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Saved values round-trip through load
-- [ ] Sensible defaults are returned when nothing is stored
-- [ ] Corrupt or out-of-range stored data is ignored in favour of defaults
-- [ ] Tests exercise only the public interface
+- [x] Saved values round-trip through load
+- [x] Sensible defaults are returned when nothing is stored
+- [x] Corrupt or out-of-range stored data is ignored in favour of defaults
+- [x] Tests exercise only the public interface
