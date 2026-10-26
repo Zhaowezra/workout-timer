@@ -1,8 +1,4 @@
-export interface WorkoutSettings {
-  rounds: number
-  workSeconds: number
-  restSeconds: number
-}
+import type { WorkoutSettings } from './settings-store'
 
 export type TimerPhase = 'get-ready' | 'work' | 'rest' | 'done'
 
@@ -41,10 +37,14 @@ function buildPhaseSchedule(settings: WorkoutSettings): ScheduledPhase[] {
   return schedule
 }
 
-export function getTimerState(settings: WorkoutSettings, elapsedMilliseconds: number): TimerState {
+function assertValidSettings(settings: WorkoutSettings): void {
   assertPositiveInteger('rounds', settings.rounds)
   assertPositiveInteger('workSeconds', settings.workSeconds)
   assertPositiveInteger('restSeconds', settings.restSeconds)
+}
+
+export function getTimerState(settings: WorkoutSettings, elapsedMilliseconds: number): TimerState {
+  assertValidSettings(settings)
   if (!Number.isFinite(elapsedMilliseconds) || elapsedMilliseconds < 0) {
     throw new RangeError(`elapsedMilliseconds must be a non-negative number, received ${elapsedMilliseconds}`)
   }
@@ -65,4 +65,76 @@ export function getTimerState(settings: WorkoutSettings, elapsedMilliseconds: nu
   }
 
   return { phase: 'done', round: settings.rounds, secondsRemaining: 0, isFinished: true }
+}
+
+export type BeepKind = 'soft' | 'loud'
+
+const SOFT_BEEP_SECONDS_REMAINING = [3, 2, 1]
+
+// Beeps due in the half-open interval (previous, current]; beeps at or before a phase's own start are clipped.
+export function getBeepsDue(
+  settings: WorkoutSettings,
+  previousElapsedMilliseconds: number,
+  currentElapsedMilliseconds: number,
+): BeepKind[] {
+  assertValidSettings(settings)
+  if (currentElapsedMilliseconds < previousElapsedMilliseconds) {
+    throw new RangeError(
+      `currentElapsedMilliseconds (${currentElapsedMilliseconds}) must not be before previousElapsedMilliseconds (${previousElapsedMilliseconds})`,
+    )
+  }
+
+  const beepsDue: BeepKind[] = []
+  let phaseStartMilliseconds = 0
+  for (const scheduledPhase of buildPhaseSchedule(settings)) {
+    const phaseEndMilliseconds =
+      phaseStartMilliseconds + scheduledPhase.durationSeconds * MILLISECONDS_PER_SECOND
+    const phaseBeeps: { atMilliseconds: number; kind: BeepKind }[] = [
+      ...SOFT_BEEP_SECONDS_REMAINING.map((secondsRemaining) => ({
+        atMilliseconds: phaseEndMilliseconds - secondsRemaining * MILLISECONDS_PER_SECOND,
+        kind: 'soft' as const,
+      })),
+      { atMilliseconds: phaseEndMilliseconds, kind: 'loud' },
+    ]
+    for (const { atMilliseconds, kind } of phaseBeeps) {
+      const isInsidePhase = atMilliseconds > phaseStartMilliseconds
+      const isDue = atMilliseconds > previousElapsedMilliseconds && atMilliseconds <= currentElapsedMilliseconds
+      if (isInsidePhase && isDue) beepsDue.push(kind)
+    }
+    phaseStartMilliseconds = phaseEndMilliseconds
+  }
+  return beepsDue
+}
+
+export interface PausableClock {
+  start(nowMilliseconds: number): void
+  pause(nowMilliseconds: number): void
+  resume(nowMilliseconds: number): void
+  getElapsedMilliseconds(nowMilliseconds: number): number
+}
+
+export function createPausableClock(): PausableClock {
+  let accumulatedMilliseconds = 0
+  let runningSinceMilliseconds: number | null = null
+
+  return {
+    start(nowMilliseconds) {
+      accumulatedMilliseconds = 0
+      runningSinceMilliseconds = nowMilliseconds
+    },
+    pause(nowMilliseconds) {
+      if (runningSinceMilliseconds === null) return
+      accumulatedMilliseconds += nowMilliseconds - runningSinceMilliseconds
+      runningSinceMilliseconds = null
+    },
+    resume(nowMilliseconds) {
+      if (runningSinceMilliseconds !== null) return
+      runningSinceMilliseconds = nowMilliseconds
+    },
+    getElapsedMilliseconds(nowMilliseconds) {
+      return runningSinceMilliseconds === null
+        ? accumulatedMilliseconds
+        : accumulatedMilliseconds + nowMilliseconds - runningSinceMilliseconds
+    },
+  }
 }

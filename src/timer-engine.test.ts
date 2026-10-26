@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { getTimerState } from './timer-engine'
+import { createPausableClock, getBeepsDue, getTimerState } from './timer-engine'
 
 const threeRoundSettings = { rounds: 3, workSeconds: 20, restSeconds: 10 }
 
@@ -73,5 +73,70 @@ describe('getTimerState', () => {
   test('rejects negative or non-finite elapsed time', () => {
     expect(() => getTimerState(threeRoundSettings, -1)).toThrow(RangeError)
     expect(() => getTimerState(threeRoundSettings, Number.NaN)).toThrow(RangeError)
+  })
+})
+
+describe('getBeepsDue', () => {
+  test('reports nothing while no beep boundary is crossed', () => {
+    expect(getBeepsDue(threeRoundSettings, 0, 500)).toEqual([])
+  })
+
+  test('reports a soft beep at 3, 2 and 1 seconds remaining and a loud beep at 0', () => {
+    // get-ready ends at 3000ms, so its beeps come at 0 (clipped), 1000, 2000 and 3000
+    expect(getBeepsDue(threeRoundSettings, 0, 999)).toEqual([])
+    expect(getBeepsDue(threeRoundSettings, 999, 1000)).toEqual(['soft'])
+    expect(getBeepsDue(threeRoundSettings, 1999, 2000)).toEqual(['soft'])
+    expect(getBeepsDue(threeRoundSettings, 2999, 3000)).toEqual(['loud'])
+  })
+
+  test('does not report a beep again once the previous elapsed time has reached it', () => {
+    expect(getBeepsDue(threeRoundSettings, 1000, 1500)).toEqual([])
+  })
+
+  test('reports every beep exactly once when a tick jumps across several boundaries', () => {
+    expect(getBeepsDue(threeRoundSettings, 0, 3000)).toEqual(['soft', 'soft', 'loud'])
+    // work ends at 23000 and rest ends at 33000
+    expect(getBeepsDue(threeRoundSettings, 3000, 33000)).toEqual([
+      'soft', 'soft', 'soft', 'loud',
+      'soft', 'soft', 'soft', 'loud',
+    ])
+  })
+
+  test('fires the loud beep at workout end', () => {
+    const settings = { rounds: 1, workSeconds: 10, restSeconds: 5 }
+    expect(getBeepsDue(settings, 12999, 13000)).toEqual(['loud'])
+    expect(getBeepsDue(settings, 13000, 20000)).toEqual([])
+  })
+
+  test('clips beeps to fit phases of 3 seconds or less', () => {
+    const settings = { rounds: 2, workSeconds: 2, restSeconds: 1 }
+    // work 3000-5000: soft at 4000, loud at 5000; rest 5000-6000: loud at 6000
+    expect(getBeepsDue(settings, 3000, 5000)).toEqual(['soft', 'loud'])
+    expect(getBeepsDue(settings, 5000, 6000)).toEqual(['loud'])
+  })
+
+  test('rejects an elapsed time that moves backwards', () => {
+    expect(() => getBeepsDue(threeRoundSettings, 2000, 1000)).toThrow(RangeError)
+  })
+})
+
+describe('createPausableClock', () => {
+  test('measures elapsed time since start', () => {
+    const clock = createPausableClock()
+    clock.start(1000)
+    expect(clock.getElapsedMilliseconds(4500)).toBe(3500)
+  })
+
+  test('freezes elapsed time while paused and continues after resume', () => {
+    const clock = createPausableClock()
+    clock.start(0)
+    clock.pause(2000)
+    expect(clock.getElapsedMilliseconds(9000)).toBe(2000)
+    clock.resume(10000)
+    expect(clock.getElapsedMilliseconds(10500)).toBe(2500)
+  })
+
+  test('reports zero before it is started', () => {
+    expect(createPausableClock().getElapsedMilliseconds(5000)).toBe(0)
   })
 })

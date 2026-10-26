@@ -4,10 +4,10 @@
 
 **Blocked by:** 02: Timer engine: schedule, phases and countdown
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Each beep fires exactly once, including when a tick jumps across one or more boundaries (page was hidden)
-- [ ] Beeps are clipped to fit phases of 3 seconds or less
-- [ ] The loud beep fires at workout end as well as at phase changes
-- [ ] Pausing freezes time exactly, and remaining time is correct after resuming
-- [ ] Tests exercise only the public interface
+- [x] Each beep fires exactly once, including when a tick jumps across one or more boundaries (page was hidden)
+- [x] Beeps are clipped to fit phases of 3 seconds or less
+- [x] The loud beep fires at workout end as well as at phase changes
+- [x] Pausing freezes time exactly, and remaining time is correct after resuming
+- [x] Tests exercise only the public interface
