@@ -4,8 +4,8 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The dev server and production build both succeed
-- [ ] Vitest runs and one trivial test passes
-- [ ] The build uses a relative base path so it can be served from a subpath
+- [x] The dev server and production build both succeed
+- [x] Vitest runs and one trivial test passes
+- [x] The build uses a relative base path so it can be served from a subpath
