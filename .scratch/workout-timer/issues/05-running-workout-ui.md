@@ -4,7 +4,7 @@
 
 **Blocked by:** 02: Timer engine: schedule, phases and countdown; 03: Timer engine: beeps and pause/resume; 04: Settings store
 
-**Status:** implemented, awaiting manual verification (build, tests and dev server pass; audio/wake lock/UI not browser-tested)
+**Status:** awaiting manual verification (build, tests and dev server pass; audio/wake lock/UI not browser-tested)
 
 - [x] Invalid settings are rejected with a clear message and the workout does not start
 - [ ] A full workout runs end to end with correct phases, colours and round display

@@ -6,31 +6,37 @@ export interface WakeLockManager {
 // Degrades to a no-op where the Wake Lock API is unsupported or the request is refused.
 export function createWakeLockManager(): WakeLockManager {
   let wakeLockSentinel: WakeLockSentinel | null = null
-  let isWanted = false
+  let isWakeLockWanted = false
 
   async function requestWakeLock(): Promise<void> {
     if (!('wakeLock' in navigator) || wakeLockSentinel !== null) return
     try {
-      wakeLockSentinel = await navigator.wakeLock.request('screen')
-      wakeLockSentinel.addEventListener('release', () => {
-        wakeLockSentinel = null
+      const acquiredSentinel = await navigator.wakeLock.request('screen')
+      if (!isWakeLockWanted || wakeLockSentinel !== null) {
+        await acquiredSentinel.release()
+        return
+      }
+      wakeLockSentinel = acquiredSentinel
+      acquiredSentinel.addEventListener('release', () => {
+        if (wakeLockSentinel === acquiredSentinel) wakeLockSentinel = null
       })
-    } catch {
+    } catch (wakeLockError) {
+      console.error('Failed to acquire screen wake lock:', wakeLockError)
       wakeLockSentinel = null
     }
   }
 
   document.addEventListener('visibilitychange', () => {
-    if (isWanted && document.visibilityState === 'visible') void requestWakeLock()
+    if (isWakeLockWanted && document.visibilityState === 'visible') void requestWakeLock()
   })
 
   return {
     async acquire() {
-      isWanted = true
+      isWakeLockWanted = true
       await requestWakeLock()
     },
     async release() {
-      isWanted = false
+      isWakeLockWanted = false
       const sentinelToRelease = wakeLockSentinel
       wakeLockSentinel = null
       await sentinelToRelease?.release()

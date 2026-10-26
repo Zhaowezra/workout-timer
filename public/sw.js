@@ -11,7 +11,7 @@ self.addEventListener('install', (installEvent) => {
       const indexHtml = await indexResponse.clone().text()
       await cache.put('./', indexResponse)
       const referencedAssetUrls = [...indexHtml.matchAll(/(?:src|href)="(\.\/[^"]+)"/g)].map((match) => match[1])
-      await cache.addAll([...referencedAssetUrls, './manifest.webmanifest', './icon-192.png', './apple-touch-icon.png'])
+      await cache.addAll([...referencedAssetUrls, './manifest.webmanifest', './icon-192.png', './icon-512.png', './icon.svg', './apple-touch-icon.png'])
       await self.skipWaiting()
     })(),
   )

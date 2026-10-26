@@ -4,6 +4,8 @@ import { createPausableClock, getBeepsDue, getTimerState, type TimerState } from
 import { createWakeLockManager } from './wake-lock-manager'
 
 const TICK_INTERVAL_MILLISECONDS = 100
+// A larger gap between ticks means the page was suspended; those beeps are stale and must not play.
+const STALE_TICK_GAP_MILLISECONDS = 1500
 
 function getElement<ElementType extends HTMLElement>(elementId: string): ElementType {
   const element = document.getElementById(elementId)
@@ -48,18 +50,12 @@ function parsePositiveInteger(inputElement: HTMLInputElement, fieldName: string)
   return parsedValue
 }
 
-function readValidatedSettings(): WorkoutSettings {
-  const settings = {
+function parseSettingsFromInputs(): WorkoutSettings {
+  return {
     rounds: parsePositiveInteger(roundsInput, 'Rounds'),
     workSeconds: parsePositiveInteger(workSecondsInput, 'Work'),
     restSeconds: parsePositiveInteger(restSecondsInput, 'Rest'),
   }
-  try {
-    settingsStore.save(settings)
-  } catch {
-    throw new Error('Values are too large: up to 99 rounds and 3600 seconds per phase.')
-  }
-  return settings
 }
 
 function renderTimerState(timerState: TimerState, settings: WorkoutSettings): void {
@@ -86,9 +82,12 @@ function showSetupScreen(): void {
 
 function tick(): void {
   if (activeSettings === null) return
-  const currentElapsedMilliseconds = pausableClock.getElapsedMilliseconds(performance.now())
-  for (const beepKind of getBeepsDue(activeSettings, previousElapsedMilliseconds, currentElapsedMilliseconds)) {
-    beeper.play(beepKind)
+  const currentElapsedMilliseconds = pausableClock.getElapsedMilliseconds(Date.now())
+  const millisecondsSincePreviousTick = currentElapsedMilliseconds - previousElapsedMilliseconds
+  if (millisecondsSincePreviousTick <= STALE_TICK_GAP_MILLISECONDS) {
+    for (const beepKind of getBeepsDue(activeSettings, previousElapsedMilliseconds, currentElapsedMilliseconds)) {
+      beeper.play(beepKind)
+    }
   }
   previousElapsedMilliseconds = currentElapsedMilliseconds
   const timerState = getTimerState(activeSettings, currentElapsedMilliseconds)
@@ -102,12 +101,16 @@ function tick(): void {
 }
 
 function startWorkout(): void {
+  let settingsToStart: WorkoutSettings
   try {
-    activeSettings = readValidatedSettings()
+    settingsToStart = parseSettingsFromInputs()
+    settingsStore.save(settingsToStart)
   } catch (validationError) {
+    console.error('Could not start workout:', validationError)
     validationMessage.textContent = (validationError as Error).message
     return
   }
+  activeSettings = settingsToStart
   validationMessage.textContent = ''
   beeper.unlock()
   void wakeLockManager.acquire()
@@ -117,7 +120,7 @@ function startWorkout(): void {
   pauseResumeButton.hidden = false
   pauseResumeButton.textContent = 'Pause'
   stopButton.textContent = 'Stop'
-  pausableClock.start(performance.now())
+  pausableClock.start(Date.now())
   setupScreen.hidden = true
   runningScreen.hidden = false
   tick()
@@ -127,9 +130,9 @@ function startWorkout(): void {
 function togglePause(): void {
   isPaused = !isPaused
   if (isPaused) {
-    pausableClock.pause(performance.now())
+    pausableClock.pause(Date.now())
   } else {
-    pausableClock.resume(performance.now())
+    pausableClock.resume(Date.now())
   }
   pauseResumeButton.textContent = isPaused ? 'Resume' : 'Pause'
 }
@@ -148,5 +151,7 @@ stopButton.addEventListener('click', showSetupScreen)
 fillInputs(settingsStore.load())
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  navigator.serviceWorker.register('./sw.js')
+  navigator.serviceWorker.register('./sw.js').catch((registrationError) => {
+    console.error('Service worker registration failed:', registrationError)
+  })
 }

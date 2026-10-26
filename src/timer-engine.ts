@@ -15,7 +15,8 @@ const MILLISECONDS_PER_SECOND = 1000
 interface ScheduledPhase {
   phase: Exclude<TimerPhase, 'done'>
   round: number
-  durationSeconds: number
+  startMilliseconds: number
+  endMilliseconds: number
 }
 
 function assertPositiveInteger(settingName: string, settingValue: number): void {
@@ -25,14 +26,17 @@ function assertPositiveInteger(settingName: string, settingValue: number): void 
 }
 
 function buildPhaseSchedule(settings: WorkoutSettings): ScheduledPhase[] {
-  const schedule: ScheduledPhase[] = [
-    { phase: 'get-ready', round: 1, durationSeconds: GET_READY_SECONDS },
-  ]
+  const schedule: ScheduledPhase[] = []
+  let nextStartMilliseconds = 0
+  function appendPhase(phase: ScheduledPhase['phase'], round: number, durationSeconds: number): void {
+    const endMilliseconds = nextStartMilliseconds + durationSeconds * MILLISECONDS_PER_SECOND
+    schedule.push({ phase, round, startMilliseconds: nextStartMilliseconds, endMilliseconds })
+    nextStartMilliseconds = endMilliseconds
+  }
+  appendPhase('get-ready', 1, GET_READY_SECONDS)
   for (let round = 1; round <= settings.rounds; round++) {
-    schedule.push({ phase: 'work', round, durationSeconds: settings.workSeconds })
-    if (round < settings.rounds) {
-      schedule.push({ phase: 'rest', round, durationSeconds: settings.restSeconds })
-    }
+    appendPhase('work', round, settings.workSeconds)
+    if (round < settings.rounds) appendPhase('rest', round, settings.restSeconds)
   }
   return schedule
 }
@@ -49,10 +53,8 @@ export function getTimerState(settings: WorkoutSettings, elapsedMilliseconds: nu
     throw new RangeError(`elapsedMilliseconds must be a non-negative number, received ${elapsedMilliseconds}`)
   }
 
-  let phaseStartMilliseconds = 0
   for (const scheduledPhase of buildPhaseSchedule(settings)) {
-    const phaseEndMilliseconds =
-      phaseStartMilliseconds + scheduledPhase.durationSeconds * MILLISECONDS_PER_SECOND
+    const phaseEndMilliseconds = scheduledPhase.endMilliseconds
     if (elapsedMilliseconds < phaseEndMilliseconds) {
       return {
         phase: scheduledPhase.phase,
@@ -61,7 +63,6 @@ export function getTimerState(settings: WorkoutSettings, elapsedMilliseconds: nu
         isFinished: false,
       }
     }
-    phaseStartMilliseconds = phaseEndMilliseconds
   }
 
   return { phase: 'done', round: settings.rounds, secondsRemaining: 0, isFinished: true }
@@ -85,10 +86,7 @@ export function getBeepsDue(
   }
 
   const beepsDue: BeepKind[] = []
-  let phaseStartMilliseconds = 0
-  for (const scheduledPhase of buildPhaseSchedule(settings)) {
-    const phaseEndMilliseconds =
-      phaseStartMilliseconds + scheduledPhase.durationSeconds * MILLISECONDS_PER_SECOND
+  for (const { startMilliseconds, endMilliseconds: phaseEndMilliseconds } of buildPhaseSchedule(settings)) {
     const phaseBeeps: { atMilliseconds: number; kind: BeepKind }[] = [
       ...SOFT_BEEP_SECONDS_REMAINING.map((secondsRemaining) => ({
         atMilliseconds: phaseEndMilliseconds - secondsRemaining * MILLISECONDS_PER_SECOND,
@@ -97,11 +95,10 @@ export function getBeepsDue(
       { atMilliseconds: phaseEndMilliseconds, kind: 'loud' },
     ]
     for (const { atMilliseconds, kind } of phaseBeeps) {
-      const isInsidePhase = atMilliseconds > phaseStartMilliseconds
+      const isInsidePhase = atMilliseconds > startMilliseconds
       const isDue = atMilliseconds > previousElapsedMilliseconds && atMilliseconds <= currentElapsedMilliseconds
       if (isInsidePhase && isDue) beepsDue.push(kind)
     }
-    phaseStartMilliseconds = phaseEndMilliseconds
   }
   return beepsDue
 }

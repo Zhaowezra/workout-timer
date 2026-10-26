@@ -4,7 +4,7 @@
 
 **Blocked by:** 05: Running workout in the browser (UI, beeper, wake lock)
 
-**Status:** ready-for-agent
+**Status:** awaiting manual verification (build passes; manifest/service worker/offline/iPhone install not browser-tested)
 
 - [x] A web manifest and icons exist, with scope and start URL working under a subpath (relative `./`; served 200 via `vite preview`; not yet tried under a real subpath host)
 - [x] A service worker caches the app so it launches and runs offline (implemented in `public/sw.js`; offline behaviour NOT yet exercised in a browser)
