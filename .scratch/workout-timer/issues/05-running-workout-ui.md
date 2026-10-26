@@ -4,12 +4,14 @@
 
 **Blocked by:** 02: Timer engine: schedule, phases and countdown; 03: Timer engine: beeps and pause/resume; 04: Settings store
 
-**Status:** ready-for-agent
+**Status:** implemented, awaiting manual verification (build, tests and dev server pass; audio/wake lock/UI not browser-tested)
 
-- [ ] Invalid settings are rejected with a clear message and the workout does not start
+- [x] Invalid settings are rejected with a clear message and the workout does not start
 - [ ] A full workout runs end to end with correct phases, colours and round display
 - [ ] Soft beeps at 3, 2, 1 and a louder, higher beep at 0 play on every transition and at the end
 - [ ] Audio works after tapping Start on iOS Safari
 - [ ] The wake lock is held while running, released on stop or finish, and re-acquired on return; the app degrades gracefully if unsupported
 - [ ] Time is correct after the page was hidden and shown again
 - [ ] Pause, resume and stop behave as specified
+
+Note: only the validation criterion is ticked (logic reviewed; build passes). All other criteria need manual browser/iPhone verification.
