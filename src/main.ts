@@ -146,3 +146,7 @@ pauseResumeButton.addEventListener('click', togglePause)
 stopButton.addEventListener('click', showSetupScreen)
 
 fillInputs(settingsStore.load())
+
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.register('./sw.js')
+}
