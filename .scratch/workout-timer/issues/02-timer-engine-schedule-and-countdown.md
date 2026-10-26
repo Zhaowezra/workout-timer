@@ -4,10 +4,10 @@
 
 **Blocked by:** 01: Project scaffold with test runner
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Correct phase, round and remaining seconds at given elapsed times, including phase boundaries
-- [ ] No rest after the final round
-- [ ] The finished state is reported after the last work phase
-- [ ] Non-positive or non-integer settings raise explicit errors
-- [ ] Tests exercise only the public interface
+- [x] Correct phase, round and remaining seconds at given elapsed times, including phase boundaries
+- [x] No rest after the final round
+- [x] The finished state is reported after the last work phase
+- [x] Non-positive or non-integer settings raise explicit errors
+- [x] Tests exercise only the public interface
